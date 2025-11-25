@@ -53,7 +53,7 @@
         #networkCanvas {
             width: 100%;
             height: auto;
-            cursor: crosshair;
+            cursor: pointer;
             border-radius: 8px;
             display: block;
         }
@@ -118,6 +118,57 @@
             font-weight: 600;
             color: #e2e8f0;
         }
+        .node-details {
+            margin-top: 16px;
+            background: #1a1f35;
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid #f59e0b;
+            display: none;
+        }
+        .node-details.active {
+            display: block;
+        }
+        .node-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .node-details-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f59e0b;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+        .close-btn:hover {
+            color: #e2e8f0;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .detail-item-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .detail-item-value {
+            font-size: 14px;
+            color: #e2e8f0;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -130,7 +181,48 @@
                 <div class="card">
                     <h2 class="card-title">Social Network Graph</h2>
                     <canvas id="networkCanvas" width="800" height="500"></canvas>
-                    <p class="canvas-note">Node size indicates connection count. Hover to highlight connections.</p>
+                    <p class="canvas-note">Node size indicates connection count. Hover to preview connections, click to view details.</p>
+                    
+                    <div id="nodeDetails" class="node-details">
+                        <div class="node-details-header">
+                            <div class="node-details-title" id="nodeTitle">Individual #1</div>
+                            <button class="close-btn" onclick="closeDetails()">✕</button>
+                        </div>
+                        <div class="details-grid">
+                            <div>
+                                <div class="detail-item-label">Last Arrest Date</div>
+                                <div class="detail-item-value" id="arrestDate">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Primary Charge</div>
+                                <div class="detail-item-value" id="charge">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Ward</div>
+                                <div class="detail-item-value" id="ward">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Age</div>
+                                <div class="detail-item-value" id="age">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Total Arrests</div>
+                                <div class="detail-item-value" id="totalArrests">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Known Associates</div>
+                                <div class="detail-item-value" id="associates">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Incidents Involved</div>
+                                <div class="detail-item-value" id="incidents">-</div>
+                            </div>
+                            <div>
+                                <div class="detail-item-label">Prior Offenses</div>
+                                <div class="detail-item-value" id="priorOffenses">-</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="col-1">
@@ -172,18 +264,40 @@
     <script>
         var networkData;
         var hoveredNode = null;
+        var selectedNode = null;
 
         function generateNetworkData() {
             var nodes = [];
             var edges = [];
             var numNodes = 45;
+            
+            var charges = [
+                'Unlawful Possession',
+                'Aggravated Assault',
+                'Illegal Discharge',
+                'Armed Robbery',
+                'Weapons Violation',
+                'Attempted Murder'
+            ];
+            
+            var wards = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
 
             for (var i = 0; i < numNodes; i++) {
+                var arrestDate = new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1);
+                var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                
                 nodes.push({
                     id: i,
                     x: Math.random() * 700 + 50,
                     y: Math.random() * 400 + 50,
-                    connections: 0
+                    connections: 0,
+                    arrests: Math.floor(Math.random() * 5) + 1,
+                    incidents: Math.floor(Math.random() * 8) + 1,
+                    charge: charges[Math.floor(Math.random() * charges.length)],
+                    ward: wards[Math.floor(Math.random() * wards.length)],
+                    arrestDate: months[arrestDate.getMonth()] + ' ' + arrestDate.getDate() + ', 2024',
+                    age: Math.floor(Math.random() * 30) + 18,
+                    priorOffenses: Math.floor(Math.random() * 10)
                 });
             }
 
@@ -258,10 +372,13 @@
             for (var i = 0; i < nodes.length; i++) {
                 var node = nodes[i];
                 var isHovered = hoveredNode === i;
+                var isSelected = selectedNode === i;
                 var radius = 4 + (node.connections * 1.5);
                 var intensity = Math.min(node.connections * 30, 255);
 
-                if (isHovered) {
+                if (isSelected) {
+                    ctx.fillStyle = '#f59e0b';
+                } else if (isHovered) {
                     ctx.fillStyle = '#60a5fa';
                 } else {
                     ctx.fillStyle = 'rgb(' + intensity + ', ' + Math.floor(intensity * 0.6) + ', ' + Math.floor(intensity * 0.3) + ')';
@@ -271,8 +388,8 @@
                 ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                if (isHovered) {
-                    ctx.strokeStyle = '#60a5fa';
+                if (isHovered || isSelected) {
+                    ctx.strokeStyle = isSelected ? '#f59e0b' : '#60a5fa';
                     ctx.lineWidth = 2;
                     
                     for (var j = 0; j < edges.length; j++) {
@@ -319,6 +436,57 @@
             }
         }
 
+        function handleClick(e) {
+            var canvas = document.getElementById('networkCanvas');
+            var rect = canvas.getBoundingClientRect();
+            var x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            var y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            var nodes = networkData.nodes;
+            var found = null;
+
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                var dx = x - node.x;
+                var dy = y - node.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                var radius = 4 + (node.connections * 1.5);
+
+                if (distance < radius) {
+                    found = i;
+                    break;
+                }
+            }
+
+            if (found !== null) {
+                selectedNode = found;
+                showNodeDetails(found);
+                drawNetwork();
+            }
+        }
+
+        function showNodeDetails(nodeIndex) {
+            var node = networkData.nodes[nodeIndex];
+            var detailsPanel = document.getElementById('nodeDetails');
+            
+            document.getElementById('nodeTitle').textContent = 'Individual #' + (nodeIndex + 1);
+            document.getElementById('arrestDate').textContent = node.arrestDate;
+            document.getElementById('charge').textContent = node.charge;
+            document.getElementById('ward').textContent = node.ward;
+            document.getElementById('age').textContent = node.age;
+            document.getElementById('totalArrests').textContent = node.arrests;
+            document.getElementById('associates').textContent = node.connections;
+            document.getElementById('incidents').textContent = node.incidents;
+            document.getElementById('priorOffenses').textContent = node.priorOffenses;
+            
+            detailsPanel.classList.add('active');
+        }
+
+        function closeDetails() {
+            document.getElementById('nodeDetails').classList.remove('active');
+            selectedNode = null;
+            drawNetwork();
+        }
+
         function init() {
             networkData = generateNetworkData();
 
@@ -327,6 +495,7 @@
                 hoveredNode = null;
                 drawNetwork();
             });
+            document.getElementById('networkCanvas').addEventListener('click', handleClick);
 
             var stats = calculateNetworkStats(networkData);
             var statsContainer = document.getElementById('networkStats');
