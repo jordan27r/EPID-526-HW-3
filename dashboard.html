@@ -1,0 +1,312 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+const GunViolenceDashboard = () => {
+  const canvasRef = useRef(null);
+  const [hoveredNode, setHoveredNode] = useState(null);
+  
+  const generateNetworkData = () => {
+    const nodes = [];
+    const edges = [];
+    const numNodes = 45;
+    
+    for (let i = 0; i < numNodes; i++) {
+      nodes.push({
+        id: i,
+        x: Math.random() * 700 + 50,
+        y: Math.random() * 400 + 50,
+        connections: 0,
+        arrests: Math.floor(Math.random() * 5),
+        incidents: Math.floor(Math.random() * 8) + 1
+      });
+    }
+    
+    for (let i = 0; i < numNodes; i++) {
+      const numConnections = Math.floor(Math.random() * 4) + 1;
+      for (let j = 0; j < numConnections; j++) {
+        const target = Math.floor(Math.random() * numNodes);
+        if (target !== i && !edges.find(e => 
+          (e.source === i && e.target === target) || 
+          (e.source === target && e.target === i)
+        )) {
+          edges.push({ source: i, target });
+          nodes[i].connections++;
+          nodes[target].connections++;
+        }
+      }
+    }
+    
+    return { nodes, edges };
+  };
+  
+  const [networkData] = useState(generateNetworkData());
+  
+  const calculateNetworkStats = () => {
+    const { nodes, edges } = networkData;
+    const avgConnections = nodes.reduce((sum, n) => sum + n.connections, 0) / nodes.length;
+    
+    const findLongestPath = () => {
+      let maxPath = 0;
+      nodes.forEach(startNode => {
+        const visited = new Set();
+        const queue = [[startNode.id, 0]];
+        visited.add(startNode.id);
+        
+        while (queue.length > 0) {
+          const [nodeId, depth] = queue.shift();
+          maxPath = Math.max(maxPath, depth);
+          
+          edges.forEach(edge => {
+            let next = null;
+            if (edge.source === nodeId && !visited.has(edge.target)) {
+              next = edge.target;
+            } else if (edge.target === nodeId && !visited.has(edge.source)) {
+              next = edge.source;
+            }
+            
+            if (next !== null) {
+              visited.add(next);
+              queue.push([next, depth + 1]);
+            }
+          });
+        }
+      });
+      return maxPath;
+    };
+    
+    const longestPath = findLongestPath();
+    const density = (2 * edges.length) / (nodes.length * (nodes.length - 1));
+    
+    return {
+      totalNodes: nodes.length,
+      totalEdges: edges.length,
+      avgConnections: avgConnections.toFixed(2),
+      longestPath,
+      networkDensity: (density * 100).toFixed(2) + '%',
+      clustering: '0.34'
+    };
+  };
+  
+  const wardData = [
+    { ward: '1st', arrests: 87 },
+    { ward: '2nd', arrests: 134 },
+    { ward: '3rd', arrests: 98 },
+    { ward: '4th', arrests: 156 },
+    { ward: '5th', arrests: 112 },
+    { ward: '6th', arrests: 89 },
+    { ward: '7th', arrests: 143 },
+    { ward: '8th', arrests: 78 }
+  ];
+  
+  const monthlyData = [
+    { month: 'Jan', incidents: 45, arrests: 23 },
+    { month: 'Feb', incidents: 38, arrests: 19 },
+    { month: 'Mar', incidents: 52, arrests: 27 },
+    { month: 'Apr', incidents: 61, arrests: 31 },
+    { month: 'May', incidents: 73, arrests: 38 },
+    { month: 'Jun', incidents: 89, arrests: 45 },
+    { month: 'Jul', incidents: 94, arrests: 48 },
+    { month: 'Aug', incidents: 87, arrests: 44 },
+    { month: 'Sep', incidents: 76, arrests: 39 },
+    { month: 'Oct', incidents: 68, arrests: 35 },
+    { month: 'Nov', incidents: 54, arrests: 28 },
+    { month: 'Dec', incidents: 49, arrests: 25 }
+  ];
+  
+  const summaryStats = {
+    avgIncidentsBeforeArrest: '3.4',
+    mostCommonCharge: 'Unlawful Possession',
+    avgTimeBetweenIncidents: '18.7 days',
+    repeatOffenderRate: '42%',
+    multiPersonIncidents: '67%',
+    averageNetworkSize: '4.2 persons'
+  };
+  
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const { nodes, edges } = networkData;
+    
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.strokeStyle = '#1e3a5f';
+    ctx.lineWidth = 1;
+    edges.forEach(edge => {
+      const source = nodes[edge.source];
+      const target = nodes[edge.target];
+      ctx.beginPath();
+      ctx.moveTo(source.x, source.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+    });
+    
+    nodes.forEach((node, i) => {
+      const isHovered = hoveredNode === i;
+      const radius = 4 + (node.connections * 1.5);
+      
+      const intensity = Math.min(node.connections * 30, 255);
+      ctx.fillStyle = isHovered 
+        ? '#60a5fa' 
+        : `rgb(${intensity}, ${Math.floor(intensity * 0.6)}, ${Math.floor(intensity * 0.3)})`;
+      
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      
+      if (isHovered) {
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        edges.forEach(edge => {
+          if (edge.source === i) {
+            const target = nodes[edge.target];
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, 4 + (target.connections * 1.5), 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (edge.target === i) {
+            const source = nodes[edge.source];
+            ctx.beginPath();
+            ctx.arc(source.x, source.y, 4 + (source.connections * 1.5), 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        });
+      }
+    });
+  }, [networkData, hoveredNode]);
+  
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const { nodes } = networkData;
+    let found = null;
+    
+    nodes.forEach((node, i) => {
+      const dx = x - node.x;
+      const dy = y - node.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const radius = 4 + (node.connections * 1.5);
+      
+      if (distance < radius) {
+        found = i;
+      }
+    });
+    
+    setHoveredNode(found);
+  };
+  
+  const networkStats = calculateNetworkStats();
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 to-slate-900 p-6 text-slate-200">
+      <h1 className="text-3xl font-bold mb-2 text-blue-400">
+        Gun Violence Social Network Analysis
+      </h1>
+      <p className="text-slate-400 mb-6">
+        Interactive dashboard for incident and arrest pattern analysis
+      </p>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div className="lg:col-span-2 bg-slate-900 rounded-xl p-5 border border-slate-700">
+          <h2 className="text-lg mb-4 text-blue-400">Social Network Graph</h2>
+          <canvas
+            ref={canvasRef}
+            width={800}
+            height={500}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredNode(null)}
+            className="w-full h-auto cursor-crosshair rounded-lg"
+          />
+          <p className="text-xs text-slate-500 mt-3">
+            Node size indicates connection count. Hover to highlight connections.
+          </p>
+        </div>
+        
+        <div className="bg-slate-900 rounded-xl p-5 border border-slate-700">
+          <h2 className="text-lg mb-4 text-blue-400">Network Statistics</h2>
+          <div className="flex flex-col gap-3">
+            {Object.entries(networkStats).map(([key, value]) => (
+              <div key={key} className="bg-slate-800 p-3 rounded-lg border-l-4 border-blue-500">
+                <div className="text-xs text-slate-400 uppercase">
+                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                </div>
+                <div className="text-xl font-semibold text-slate-200 mt-1">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <div className="bg-slate-900 rounded-xl p-5 border border-slate-700">
+          <h2 className="text-lg mb-4 text-blue-400">Arrests by Ward</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={wardData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
+              <XAxis dataKey="ward" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip 
+                contentStyle={{ 
+                  background: '#1a1f35', 
+                  border: '1px solid #1e3a5f',
+                  borderRadius: '8px',
+                  color: '#e2e8f0'
+                }}
+              />
+              <Bar dataKey="arrests" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+        <div className="bg-slate-900 rounded-xl p-5 border border-slate-700">
+          <h2 className="text-lg mb-4 text-blue-400">Monthly Activity Trends</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
+              <XAxis dataKey="month" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip 
+                contentStyle={{ 
+                  background: '#1a1f35', 
+                  border: '1px solid #1e3a5f',
+                  borderRadius: '8px',
+                  color: '#e2e8f0'
+                }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="incidents" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="arrests" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+          <div className="mt-4 p-3 bg-slate-800 rounded-lg text-sm text-slate-300">
+            <strong className="text-blue-400">Peak Activity:</strong> June-August shows highest incident rates, correlating with summer months.
+          </div>
+        </div>
+      </div>
+      
+      <div className="bg-slate-900 rounded-xl p-5 border border-slate-700">
+        <h2 className="text-lg mb-4 text-blue-400">Summary Statistics</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(summaryStats).map(([key, value]) => (
+            <div key={key} className="bg-slate-800 p-4 rounded-lg border-l-4 border-purple-500">
+              <div className="text-xs text-slate-400 mb-2">
+                {key.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}
+              </div>
+              <div className="text-2xl font-semibold text-slate-200">
+                {value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GunViolenceDashboard;
