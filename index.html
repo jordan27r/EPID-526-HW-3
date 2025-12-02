@@ -14,6 +14,56 @@
             font-family: Arial, sans-serif;
             margin: 0;
         }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Intervention Banner */
+        .intervention-banner {
+            background: linear-gradient(to right, #064e3b, #065f46);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #047857;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .intervention-icon {
+            background: #047857;
+            border-radius: 50%;
+            padding: 8px;
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .intervention-content {
+            flex: 1;
+        }
+        .intervention-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #d1fae5;
+            margin-bottom: 4px;
+        }
+        .intervention-text {
+            font-size: 14px;
+            color: #e2e8f0;
+            line-height: 1.5;
+            min-height: 42px;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         h1 {
             font-size: 32px;
             font-weight: 700;
@@ -23,10 +73,6 @@
         .subtitle {
             color: #94a3b8;
             margin-bottom: 24px;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
         }
         .row {
             display: flex;
@@ -173,6 +219,19 @@
 </head>
 <body>
     <div class="container">
+        <!-- Intervention Banner -->
+        <div class="intervention-banner">
+            <div class="intervention-icon">
+                <svg width="24" height="24" fill="none" stroke="#d1fae5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div class="intervention-content">
+                <div class="intervention-title">Intervention Recommendation</div>
+                <div class="intervention-text fade-in" id="interventionText">Loading recommendations...</div>
+            </div>
+        </div>
+        
         <h1>Gun Violence Social Network Analysis</h1>
         <p class="subtitle">Interactive dashboard for incident and arrest pattern analysis</p>
 
@@ -265,6 +324,63 @@
         var networkData;
         var hoveredNode = null;
         var selectedNode = null;
+        var interventionIndex = 0;
+
+        // Intervention recommendations
+        var interventions = [
+            {
+                type: "Community Outreach",
+                when: "Summer months (June-August)",
+                where: "4th and 7th Wards",
+                description: "Deploy community violence interrupters during peak incident months in high-activity wards to de-escalate conflicts before they turn violent."
+            },
+            {
+                type: "Focused Deterrence",
+                when: "Immediate priority",
+                where: "Network hubs (individuals with 5+ connections)",
+                description: "Target key network influencers with direct communication about consequences and support services to disrupt violence cascades."
+            },
+            {
+                type: "Youth Mentorship Programs",
+                when: "Year-round with summer intensification",
+                where: "2nd, 4th, and 7th Wards",
+                description: "Engage at-risk youth (ages 18-25) with mentorship and employment opportunities, particularly in wards showing repeat offender patterns."
+            },
+            {
+                type: "Hot Spot Policing",
+                when: "Weekend evenings (Fri-Sun, 6pm-2am)",
+                where: "4th Ward and network cluster zones",
+                description: "Increase visible police presence in identified hot spots during peak incident times while connecting individuals to social services."
+            },
+            {
+                type: "Cognitive Behavioral Therapy",
+                when: "Post-arrest intervention",
+                where: "All wards, priority to repeat offenders",
+                description: "Provide CBT and trauma-informed care to individuals with 2+ arrests to address root causes and reduce recidivism by 40%."
+            },
+            {
+                type: "Group Violence Intervention",
+                when: "Quarterly community meetings",
+                where: "Citywide with ward-specific sessions",
+                description: "Convene identified groups with law enforcement, community leaders, and service providers to offer support and clear consequences messaging."
+            }
+        ];
+
+        function rotateIntervention() {
+            var textElement = document.getElementById('interventionText');
+            var current = interventions[interventionIndex];
+            
+            textElement.classList.remove('fade-in');
+            
+            setTimeout(function() {
+                textElement.innerHTML = '<strong>' + current.type + '</strong> - ' + 
+                    current.description + ' <em style="color: #a7f3d0;">(When: ' + current.when + 
+                    ' | Where: ' + current.where + ')</em>';
+                textElement.classList.add('fade-in');
+            }, 100);
+            
+            interventionIndex = (interventionIndex + 1) % interventions.length;
+        }
 
         function generateNetworkData() {
             var nodes = [];
@@ -489,6 +605,10 @@
 
         function init() {
             networkData = generateNetworkData();
+
+            // Start intervention rotation
+            rotateIntervention();
+            setInterval(rotateIntervention, 8000); // Change every 8 seconds
 
             document.getElementById('networkCanvas').addEventListener('mousemove', handleMouseMove);
             document.getElementById('networkCanvas').addEventListener('mouseleave', function() {
